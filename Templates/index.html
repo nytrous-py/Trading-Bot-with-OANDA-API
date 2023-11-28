@@ -1,0 +1,107 @@
+<!-- templates/index.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Bot - OANDA API</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .container {
+            margin-top: 50px;
+        }
+        .card {
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+        }
+        .card-header {
+            background-color: #007bff;
+            color: #fff;
+            text-align: center;
+            border-radius: 10px 10px 0 0;
+            padding: 20px;
+        }
+        .card-body {
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        label {
+            font-weight: bold;
+        }
+        .custom-select {
+            width: 100%;
+            padding: 5px;
+            border-radius: 5px;
+            border: 1px solid #ced4da;
+            background-color: #fff;
+            appearance: none; /* Remove default arrow in Chrome/Safari */
+        }
+        .custom-input {
+            width: 100%;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ced4da;
+            background-color: #fff;
+            display: none;
+        }
+        .btn-primary {
+            background-color: #007bff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="card-header">
+                <h1>Trading Bot - OANDA API</h1>
+            </div>
+            <div class="card-body">
+                <form action="/execute_trade" method="post">
+                    <div class="form-group">
+                        <label for="currency_pair">Select or Enter Currency Pair:</label>
+                        <select class="custom-select" id="currency_pair" name="currency_pair">
+                            <option value="EUR_USD">EUR/USD</option>
+                            <option value="USD_JPY">USD/JPY</option>
+                            <option value="GBP_USD">GBP/USD</option>
+                            <option value="AUD_USD">AUD/USD</option>
+                            <option value="USD_CAD">USD/CAD</option>
+                            <!-- Add more currency pairs as needed -->
+                            <option value="custom">Enter Your Own Pair</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <input type="text" class="custom-input" id="custom_pair" name="custom_pair" placeholder="Enter Your Own Pair">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Execute Trade</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('currency_pair').addEventListener('change', function () {
+            var customPairInput = document.getElementById('custom_pair');
+            if (this.value === 'custom') {
+                customPairInput.style.display = 'block';
+                customPairInput.required = true;
+            } else {
+                customPairInput.style.display = 'none';
+                customPairInput.required = false;
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,24 +1,23 @@
-import yfinance as yf
-import pandas as pd
-from apscheduler.schedulers.blocking import BlockingScheduler
+# app.py
+
+from flask import Flask, render_template, request
+from oanda_candles import Pair, Gran, CandleClient
 from oandapyV20 import API
 import oandapyV20.endpoints.orders as orders
-from oandapyV20.contrib.requests import MarketOrderRequest
-from oanda_candles import Pair, Gran, CandleClient
-from oandapyV20.contrib.requests import TakeProfitDetails, StopLossDetails
-from config import access_token, accountID
+from oandapyV20.contrib.requests import MarketOrderRequest, TakeProfitDetails, StopLossDetails
+import pandas as pd
+from config import access_token, accountID  # Import access_token and accountID from config.py
 
+app = Flask(__name__)
 
-# Função para obter dados de velas
-def get_candles(n):
-
+# Function to get candles for a given currency pair
+def get_candles(pair, n):
     client = CandleClient(access_token, real=False)
-    collector = client.get_collector(Pair.EUR_USD, Gran.M15)
+    collector = client.get_collector(pair, Gran.M15)
     candles = collector.grab(n)
     return candles
 
-
-# Função para gerar sinais
+# Function to generate trading signals
 def signal_generator(open, close, previous_open, previous_close):
     # Bearish Pattern
     if (open > close and
@@ -26,21 +25,18 @@ def signal_generator(open, close, previous_open, previous_close):
             close < previous_open and
             open >= previous_close):
         return 1
-
-    # Bullish Pattern :) :)
+    # Bullish Pattern
     elif (open < close and
           previous_open > previous_close and
           close > previous_open and
           open <= previous_close):
         return 2
-
     # No clear pattern
     else:
         return 0
 
-
-# Função para executar operações de negociação
-def execute_trade(signal, dfstream):
+# Function to execute trades
+def execute_trade(client, currency_pair, signal, dfstream):
     SLTPRatio = 2.
     previous_candleR = abs(dfstream['High'].iloc[-2] - dfstream['Low'].iloc[-2])
 
@@ -50,12 +46,9 @@ def execute_trade(signal, dfstream):
     TPBuy = float(dfstream['Open'].iloc[-1]) + previous_candleR * SLTPRatio
     TPSell = float(dfstream['Open'].iloc[-1]) - previous_candleR * SLTPRatio
 
-    print(dfstream.iloc[:-1, :])
-    print(TPBuy, "  ", SLBuy, "  ", TPSell, "  ", SLSell)
-
     # Sell
     if signal == 1:
-        mo = MarketOrderRequest(instrument="EUR_USD", units=-1000,
+        mo = MarketOrderRequest(instrument=currency_pair, units=-1000,
                                 takeProfitOnFill=TakeProfitDetails(price=TPSell).data,
                                 stopLossOnFill=StopLossDetails(price=SLSell).data)
         r = orders.OrderCreate(accountID, data=mo.data)
@@ -63,17 +56,23 @@ def execute_trade(signal, dfstream):
         print(rv)
     # Buy
     elif signal == 2:
-        mo = MarketOrderRequest(instrument="EUR_USD", units=1000,
+        mo = MarketOrderRequest(instrument=currency_pair, units=1000,
                                 takeProfitOnFill=TakeProfitDetails(price=TPBuy).data,
                                 stopLossOnFill=StopLossDetails(price=SLBuy).data)
         r = orders.OrderCreate(accountID, data=mo.data)
         rv = client.request(r)
         print(rv)
 
+# Main route for the web interface
+@app.route('/')
+def index():
+    return render_template('index.html')
 
-# Função principal
-def trading_job():
-    candles = get_candles(3)
+# Route to handle form submission
+@app.route('/execute_trade', methods=['POST'])
+def execute_trade_route():
+    currency_pair = request.form['currency_pair']
+    candles = get_candles(currency_pair, 3)
     dfstream = pd.DataFrame(columns=['Open', 'Close', 'High', 'Low'])
 
     for i, candle in enumerate(candles):
@@ -89,14 +88,11 @@ def trading_job():
                               dfstream['Open'].iloc[-2],
                               dfstream['Close'].iloc[-2])
 
-    execute_trade(signal, dfstream.iloc[:-1, :])
+    # OANDA API
+    api = API(access_token=access_token)
+    execute_trade(api, currency_pair, signal, dfstream.iloc[:-1, :])
 
+    return render_template('result.html')
 
-# Execução manual
-trading_job()
-
-# Comentado para evitar execução automática
-# scheduler = BlockingScheduler()
-# scheduler.add_job(trading_job, 'cron', day_of_week='mon-fri', hour='00-23', minute='1,16,31,46',
-#                   start_date='2022-01-12 12:00:00', timezone='America/Chicago')
-# scheduler.start()
+if __name__ == '__main__':
+    app.run(debug=True)
